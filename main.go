@@ -37,7 +37,7 @@ func main() {
 		log.Fatal("mkdir error:", err)
 	}
 
-	logFile := cfg.Log.Path + "/" + LOG
+	logFile := cfg.Log.Path + LOG
 	f, err := os.OpenFile(logFile, os.O_APPEND|os.O_CREATE|os.O_RDWR, 0666)
 	if err != nil {
 		log.Fatal("error opening file: %v", err)

@@ -1,10 +1,10 @@
 package relay
 
 import (
+	"fmt"
 	"strings"
 	"sync"
 	"time"
-	"fmt"
 
 	log "github.com/Sirupsen/logrus"
 )
@@ -13,6 +13,8 @@ type retryDb struct {
 	initialInterval time.Duration
 	multiplier      time.Duration
 	maxInterval     time.Duration
+
+	wait bool
 
 	db *rocksdb
 	p  poster
@@ -39,6 +41,7 @@ func newDiskRetryBuffer(post poster, prefix, suffix string) *retryDb {
 		maxInterval:     DefaultMaxDelayInterval,
 		db:              data,
 		p:               post,
+		wait:            false,
 	}
 
 	go r.run()
@@ -59,6 +62,7 @@ func (r *retryDb) post(buf []byte, query string) (*responseData, error) {
 	}
 
 	r.wg.Add(1)
+	r.wait = true
 	r.wg.Wait()
 
 	return r.resp, nil
@@ -80,7 +84,10 @@ func (r *retryDb) run() {
 			resp, err := r.p.post([]byte(key), value)
 			if err == nil && resp.StatusCode/100 != 5 {
 				r.resp = resp
-				r.wg.Done()
+				if r.wait {
+					r.wg.Done()
+					r.wait = false
+				}
 				break
 			}
 
@@ -102,7 +109,7 @@ func pop(db *rocksdb) (body, option string) {
 
 	key, value := db.read()
 	if key != "" {
-		str:=fmt.Sprintf("pop: key=%v, value=%v", key, value)
+		str := fmt.Sprintf("pop: key=%v, value=%v", key, value)
 		log.Debug(str)
 	}
 

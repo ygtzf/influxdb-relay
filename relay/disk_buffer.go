@@ -1,6 +1,8 @@
 package relay
 
 import (
+	"fmt"
+
 	log "github.com/Sirupsen/logrus"
 	"github.com/tecbot/gorocksdb"
 )
@@ -18,6 +20,7 @@ func newRocksdb(path string) *rocksdb {
 
 	//opts.SetBlockCache(gorocksdb.NewLRUCache(3 << 20))
 	r.opts.SetCreateIfMissing(true)
+	r.opts.SetMaxOpenFiles(65535)
 
 	r.openDb(path)
 	r.newRead()
@@ -45,14 +48,25 @@ func (r *rocksdb) read() (string, string) {
 	it := r.db.NewIterator(r.ro)
 	defer it.Close()
 
+	if it.Valid() {
+		return "", ""
+	}
+
 	it.SeekToFirst()
 	if !it.Valid() {
 		return "", ""
 	}
 
+	fmt.Println("---key--", string(it.Key().Data()[:]))
+	fmt.Println("---value--", string(it.Value().Data()[:]))
+
 	key := it.Key()
 	value := it.Value()
 
+	//key := make([]byte, 25)
+	//value := make([]byte, 150)
+	//copy(key, it.Key().Data())
+	//copy(value, it.Value().Data())
 	defer key.Free()
 	defer value.Free()
 
@@ -61,6 +75,7 @@ func (r *rocksdb) read() (string, string) {
 	}
 
 	return string(key.Data()[:]), string(value.Data()[:])
+	//return string(key[:]), string(value[:])
 }
 
 func (r *rocksdb) newWrite() {
